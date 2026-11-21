@@ -1,0 +1,29 @@
+{
+  "name": "enc",
+  "displayName": "enCoders",
+  "description": "A configurable agentic development workflow for Claude Code: brainstorm, architecture decisions, config, plan, and phase-by-phase implementation with review gates. Ships Markdown, JSON, and YAML only: no code and no hooks. Requires Claude Code (terminal, IDE, or Desktop Code tab).",
+  "version": "1.0.0",
+  "author": {
+    "name": "EncodersTech",
+    "email": "support@encoderstech.com"
+  },
+  "homepage": "https://github.com/rokib572/enCoders#readme",
+  "repository": "https://github.com/rokib572/enCoders",
+  "license": "MIT",
+  "icon": "./.claude-plugin/logo.png",
+  "privacyPolicyUrl": "https://github.com/rokib572/enCoders/blob/main/PRIVACY.md",
+  "keywords": [
+    "workflow",
+    "multi-agent",
+    "orchestration",
+    "code-review",
+    "planning",
+    "implementation",
+    "testing",
+    "security",
+    "guardrails",
+    "human-in-the-loop",
+    "tdd",
+    "debugging"
+  ]
+}

@@ -1,0 +1,172 @@
+---
+name: configure
+description: Views or changes any enCoders configuration value — profile, agents, models, autonomy, review pipeline, git level, command slots, coding conventions — always as a diff applied only on explicit approval, followed by an automatic doctor run. Use when the user wants a workflow setting or a project coding rule adjusted; this is the sanctioned path, so reach for it rather than hand-editing .enc-workflow.yml.
+compatibility: Requires Claude Code (terminal, IDE extension, or Desktop Code tab)
+---
+
+# enc:configure
+
+Change configuration safely: current value → proposed YAML diff → explicit
+apply → automatic doctor. Config is the single source of truth — this skill
+is the only sanctioned way to change it besides hand-editing plus doctor.
+
+## Step 0 — environment gate
+
+Run `test "$CLAUDECODE" = "1"` with Bash. If it fails, STOP and show
+exactly: "enCoders runs only in Claude Code (terminal, IDE, or the Desktop Code
+tab). Your project config and brief are untouched — open this repo in
+Claude Code to continue."
+
+## Step 1 — load
+
+Load and validate the effective config by hand, following "Load and
+validate the config" in `${CLAUDE_PLUGIN_ROOT}/references/config.md`
+(defaults ← team file ← local overrides; disabled agents dropped).
+
+- No config → tell the user to run `/enc:init` first and STOP.
+- Validation errors → show them verbatim, recommend fixing via this skill
+  or `/enc:doctor`, and continue only for the domains the errors don't
+  touch.
+- `review.trigger: on-stop` → the loader reads it as `phase-gate` with a
+  warning; propose the one-line diff to `phase-gate` (step 4) before any
+  other change.
+
+## Step 2 — route to a domain
+
+If the user named a domain or a concrete change, go straight there.
+Otherwise show the menu once: **agents** (roster, models, autonomy, custom
+agents) · **review** (gate order, trigger, scope) · **implement** (phase
+plan gate) · **git** (level, branch prefixes) · **commands** (slots) ·
+**profile** · **claude_md** (layout, files) · **conventions** (coding
+rules, feature structure) · **secrets** (extend globs) ·
+**mode** (enCoders mode: enforced / advisory / off).
+
+Domain notes:
+
+- **agents / models**: present a live-fetched model list (check what models
+  currently exist — never offer a hardcoded list) with a free-text escape
+  hatch. Keep tier discipline visible: judgment/implementation/mechanical.
+- **agents / custom agent**: follow the add-agent skill flow
+  (`/enc:add-agent`), which owns the questions, defaults, and
+  single-owner conflict handling.
+- **mode**: follow the mode skill flow (`/enc:mode`), which owns the
+  table of what each value does, the one-line diff, and the CLAUDE.md
+  doctrine re-render. It is a team setting: never route it to
+  `.enc-workflow.local.yml`.
+- **conventions**: follow the conventions round
+  (`${CLAUDE_PLUGIN_ROOT}/skills/init/references/conventions-round.md`),
+  which owns the categories, the rule format, and enforcement assignment.
+  Read its "Re-run" section first — a re-run is a TARGETED change to one
+  category or one rule, never the full init sweep. The change lands in
+  `rules_file` and the CLAUDE.md `## Feature structure` sections, not in
+  `.enc-workflow.yml`, so step 4's diff is a markdown diff.
+  Moving a rule TO `lint(...)` runs that file's "Prove the lint teeth"
+  phase for that one rule — measured, wired, or demoted, same as at init.
+  If the wiring needs a new or split lint slot, that is a `commands`
+  change: a second, sequential diff under the one-domain limit below.
+- **implement**: `implement.plan_gate` (default true) decides whether
+  `/enc:implement-phase` presents the phase's full dispatch plan through
+  the plan-mode approval gate, or only a one-line scope confirmation.
+  Either way the phase is entered through that gate, so the developer can
+  approve with auto-accept edits; turning it off skips the reading, not
+  the gate. Per-agent `autonomy` is unaffected.
+- **profile**: switching profile rewrites the bundled values (git.level,
+  autonomy, review.trigger) — show ALL of them in the diff, not just the
+  profile name.
+- **git level**: L0 read-only · L1 commit-local · L2 push-branches ·
+  L3 open-PRs. The level itself decides which git/gh operations the
+  settings denies forbid (the grants table in config.md §2.4);
+  `forbidden_ops` in config only EXTENDS that list and never needs
+  regenerating. Show what the new level grants in the diff's consequence
+  lines. Pushes landing on the default branch, force or delete pushes,
+  branch deletes, `git config` writes, and `gh pr merge` stay denied at
+  every level.
+- **review**: `review_gates` order, `review.trigger` (`manual` ·
+  `phase-gate` · `pre-commit`; `on-stop` is retired — nothing in this
+  edition fires it — and loads as `phase-gate`, so offer the diff that
+  writes `phase-gate` explicitly), `review.auto_scope`, and
+  `review.scope` — `phase` (default) runs the reviewers once over the
+  whole phase diff, `layer` runs them after every layer. `pre-commit`
+  has teeth only once `.git/hooks/pre-commit` exists (doctor check 8;
+  `/enc:code-review` installs it) — say so in the consequence line.
+- **secrets**: `secret_globs` is additive — the defaults are always in
+  force and the file lists only extras. A subset in the file is not a
+  shrink; the loader re-adds the defaults and warns.
+- **model/autonomy/plan-gate changes for one developer**: offer to write
+  them to `.enc-workflow.local.yml` (gitignored, personal) instead of the
+  team file. Only `agents.*.model`, `agents.*.autonomy`,
+  `implement.plan_gate`, and `token_reporting` may live there — the loader
+  rejects anything else.
+
+## Step 3 — refuse invariant changes
+
+Decline, with one sentence of why, any request to: change
+`enc.requires.surface`, remove or narrow `secret_globs` entries (extending
+is fine), allow direct push to the default branch, or keep a rule with no
+enforcement. These are hard invariants; no profile or argument unlocks them.
+
+## Step 4 — diff, apply, doctor
+
+1. Show the exact change as a unified diff (only the changed lines, with 2
+   lines of context) — YAML for `.enc-workflow.yml`, markdown for the
+   conventions domain's `rules_file` and CLAUDE.md edits. Below it, one
+   sentence per behavioral consequence ("coder dispatches will now wait
+   for your approval").
+2. Apply ONLY on explicit approval. Edit the target file surgically —
+   never rewrite untouched sections, never reformat, keep the user's
+   comments.
+3. Validate: re-run the load of step 1 ("Validate after a write" in
+   config.md) and expect zero errors — if it errors on what you wrote, fix
+   your edit (not the user's other config) until clean. The conventions
+   domain touches no config value, so this step is a no-op there; step 4
+   below is its real check.
+4. Auto-run the doctor: run checks 0-9 by hand per
+   `${CLAUDE_PLUGIN_ROOT}/references/doctor.md` and show the report in its
+   output contract. A change that turns the doctor red gets flagged
+   immediately with the offer to revert the diff.
+5. If check 7 reports deny entries missing from or **stale** in
+   `.claude/settings.json` (a git-level, secrets or `verify_full` change
+   alters the required set — a raised level must RETRACT the old
+   `git push:*`-style denies or the change is silently ineffective at the
+   permission layer; a project initialized before the denies existed has
+   none), offer to regenerate them per
+   `${CLAUDE_PLUGIN_ROOT}/references/settings-denies.md`: derive the
+   required set, show the diff against the current file (enCoders' own
+   recorded rules are retracted; everything the user wrote is kept in
+   place), on explicit approval write the settings file and its sidecar
+   together, then re-run the doctor. This is a second, sequential diff
+   under the one-domain limit below. If the sandbox is on (check 7 says
+   so) include the sandbox block so its entries follow the config too; if
+   it is off, mention once that the sandbox adds the OS-level layer and
+   leave the choice to the user.
+
+## Step 5 — sweep what a deactivation leaves behind
+
+When the applied change disables an agent (`enabled: false`), the loader
+already drops it from every flow. Its NAME can still sit in project prose.
+Run the reference sweep in `${CLAUDE_PLUGIN_ROOT}/references/scans.md`
+(raw config, whole-word grep over the files it lists) and, for every hit,
+propose its removal as one diff per file, applied only on approval:
+
+- CLAUDE.md guides, the glossary, `.claude/` skills, commands, and rules:
+  delete the sentence, bullet, or table row that names the agent, and
+  reword what is left only as far as grammar needs.
+- A rule in `rules_file` whose `**Enforcement:**` names the agent: never
+  delete the enforcement. Reassign the owner through the conventions
+  round, because a rule needs teeth.
+- `.enc-workflow.local.yml` overrides for the agent: delete that block.
+- A disabled custom agent's own file (`line` null): offer to delete
+  `.claude/agents/<name>.md`. Re-enabling regenerates it.
+- The progress log, plans, and state are history and are never scanned
+  or edited.
+
+The agent's entry in `.enc-workflow.yml` stays, so re-enabling it is a
+one-line change. Then re-run the doctor. Check 4 warns on any reference
+still left.
+
+## Hard limits
+
+- Never apply without showing the diff and getting approval — even for
+  "obviously safe" changes.
+- Never touch git.
+- One domain change per apply; batch requests become sequential diffs.

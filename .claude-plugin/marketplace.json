@@ -1,0 +1,15 @@
+{
+  "name": "encoders",
+  "description": "Marketplace for enCoders — a configurable agentic development workflow plugin for Claude Code.",
+  "owner": {
+    "name": "EncodersTech",
+    "email": "support@encoderstech.com"
+  },
+  "plugins": [
+    {
+      "name": "enc",
+      "source": "./",
+      "description": "enCoders — a configurable agentic development workflow plugin. Requires Claude Code."
+    }
+  ]
+}
